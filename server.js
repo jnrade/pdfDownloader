@@ -10,7 +10,7 @@ app.get('/', (req, res) => {
 
 // Serve your PDF file
 app.get('/download', (req, res) => {
-  const filePath = 'C:/Users/Junior De Jonge/Desktop/samplePdfPath/samplePdf.pdf'; // Update to your file path
+  const filePath = 'C:/Users/Junior%20De%20Jonge/Desktop/samplePdfPath/samplePdf.pdf'; // Update to your file path
   res.download(filePath, (err) => {
     if (err) {
       console.error('File download error:', err);
