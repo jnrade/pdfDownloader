@@ -1,38 +1,45 @@
 const express = require('express');
-const localtunnel = require('localtunnel');
+const bodyParser = require('body-parser');
+const fs = require('fs');
+const path = require('path');
+const { MessagingResponse } = require('twilio').twiml;
 
 const app = express();
 
-// Your server logic here
-app.get('/', (req, res) => {
-  res.send('Hello, world!');
+app.use(bodyParser.urlencoded({ extended: false }));
+
+// Endpoint for Twilio to POST WhatsApp messages
+app.post('/whatsapp', (req, res) => {
+  const twiml = new MessagingResponse();
+
+  const incomingMsg = req.body.Body.trim();
+
+  if (incomingMsg === '2') {
+    // Provide the download link for the PDF
+    const pdfUrl = 'https://pdfdownloader-21zh.onrender.com/download/samplePdf.pdf';
+    twiml.message(`Here is your PDF: ${pdfUrl}`);
+  } else {
+    // Respond with a default message
+    twiml.message('Please send "2" to receive the PDF.');
+  }
+
+  res.writeHead(200, { 'Content-Type': 'text/xml' });
+  res.end(twiml.toString());
 });
 
-// Serve your PDF file
-app.get('/download', (req, res) => {
-  const filePath = 'C:/Users/Junior%20De%20Jonge/Desktop/samplePdfPath/samplePdf.pdf'; // Update to your file path
-  res.download(filePath, (err) => {
-    if (err) {
-      console.error('File download error:', err);
-      res.status(500).send('Error downloading file.');
-    }
-  });
+// Endpoint for downloading the PDF
+app.get('/download/:filename', (req, res) => {
+  const filePath = path.join(__dirname, 'pdfs', req.params.filename);
+
+  if (fs.existsSync(filePath)) {
+    res.download(filePath);
+  } else {
+    res.status(404).send('File not found.');
+  }
 });
 
 // Start the server
-const port = 3000;
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-
-  // Start localtunnel
-  (async () => {
-    const tunnel = await localtunnel({ port: port });
-
-    // the assigned public URL for your tunnel
-    console.log(`Tunnel URL: ${tunnel.url}`);
-
-    tunnel.on('close', () => {
-      console.log('Tunnel closed');
-    });
-  })();
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
