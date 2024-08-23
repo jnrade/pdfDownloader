@@ -16,7 +16,7 @@ app.post('/whatsapp', (req, res) => {
 
   if (incomingMsg === '2') {
     // Provide the download link for the PDF
-    const pdfUrl = 'https://pdfdownloader-21zh.onrender.com/download/samplePdf.pdf';
+    const pdfUrl = 'https://pdfdownloader-21zh.onrender.com/pdfs/samplePdf.pdf';
     twiml.message(`Here is your PDF: ${pdfUrl}`);
   } else {
     // Respond with a default message
