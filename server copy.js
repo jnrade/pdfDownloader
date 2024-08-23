@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const localtunnel = require('localtunnel');
 
 const app = express();
 
@@ -14,29 +15,32 @@ if (!fs.existsSync(destinationDir)) {
     fs.mkdirSync(destinationDir);
 }
 
+app.get('/'), (req, res) => {
+    res.status(200).send('Not Authorized')
+}
+
 // Route to download the PDF file
 app.get('/download', (req, res) => {
     // Check if the file exists
     if (fs.existsSync(filePath)) {
-        // Copy the file to the "pdfs" directory
+        // Copy the file to the "pdfs" directory first
         const destinationPath = path.join(destinationDir, fileName);
         fs.copyFile(filePath, destinationPath, (err) => {
             if (err) {
                 console.error("Error copying file:", err);
-                return res.status(500).send('File download failed.');
+                return res.status(500).send('File copy failed.');
             }
 
-            // Serve the original file for download
+            // If file copy is successful, proceed with download
             res.download(filePath, (err) => {
                 if (err) {
                     console.error("Error during file download:", err);
                     res.status(500).send('File download failed.');
                 } else {
                     console.log('File download successful.');
-                    res.status(200).send('File download successful.');
                 }
             });
-        });
+        }); 
     } else {
         // File does not exist, return an error
         console.error('File not found.');
