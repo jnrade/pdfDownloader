@@ -1,0 +1,21 @@
+{
+  "name": "pdfdownloader",
+  "version": "1.0.0",
+  "description": "A pdf sample downloader",
+  "main": "server.js",
+  "scripts": {
+    "test": "nodemon server.js",
+    "start": "nodemon --delay 10 server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "None"
+  },
+  "author": "Junior De Jonge",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.4",
+    "express": "^4.19.2",
+    "nodemon": "^3.1.4"
+  }
+}
