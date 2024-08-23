@@ -4,12 +4,14 @@ const path = require('path');
 const fs = require('fs');
 const twilio = require('twilio');
 
+// tokens
+const accountSid = process.env.accountSid;
+const authToken = process.env.authToken;
+
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 
 // Twilio credentials (You can use environment variables for security)
-const accountSid = 'AC1f8c2b177fb071b2881e5c6514c8da04';  // Replace with your Twilio Account SID
-const authToken = '86c9375f77619e9223b4d7c2455f5dca';    // Replace with your Twilio Auth Token
 const client = new twilio(accountSid, authToken);
 
 // Endpoint for Twilio to POST WhatsApp messages

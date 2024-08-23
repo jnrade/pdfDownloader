@@ -3,3 +3,6 @@ node_modules
 
 # ignore package lock
 package-lock.json
+
+# ignore env
+.env
