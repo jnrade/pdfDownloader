@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
 const twilio = require('twilio');
+require('dotenv').config();
 
 // tokens
 const accountSid = process.env.accountSid;
