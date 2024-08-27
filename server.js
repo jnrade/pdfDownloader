@@ -38,7 +38,7 @@ app.post('/whatsapp', async (req, res) => {
 
     if (incomingMsg === '2') {
         // Access the most recent PDF document
-        const sourceDir = 'C:/Users/YourName/Documents'; // Replace with the directory containing your PDFs
+        const sourceDir = 'C:/Users/JuniorDejonge/Documents'; // Replace with the directory containing your PDFs
         const mostRecentFile = getMostRecentFile(sourceDir);
 
         if (mostRecentFile) {
@@ -57,7 +57,7 @@ app.post('/whatsapp', async (req, res) => {
                 req.session.pdfFilePath = targetFilePath;
 
                 // Send the user the download link
-                const pdfUrl = `https://your-render-app-url/download/${req.sessionID}/${mostRecentFile}`;
+                const pdfUrl = `https://pdfdownloader-21zh.onrender.com/download/${req.sessionID}/${mostRecentFile}`;
                 await client.messages.create({
                     body: `Here is your most recent PDF: ${pdfUrl}`,
                     from: 'whatsapp:+14155238886', // Twilio Sandbox number
