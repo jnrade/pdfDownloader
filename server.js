@@ -5,7 +5,6 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs-extra');
 const twilio = require('twilio');
-const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
@@ -23,6 +22,9 @@ app.use(session({
     saveUninitialized: true,
     cookie: { maxAge: 60000 }
 }));
+
+// Serve the pdfs directory publicly
+app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
 
 // Setup multer for file uploads
 const storage = multer.diskStorage({
@@ -65,8 +67,8 @@ app.post('/whatsapp', async (req, res) => {
 // Endpoint for local machine to upload the latest PDF
 app.post('/upload-pdf', upload.single('pdf'), async (req, res) => {
     if (req.session.pendingRequest) {
-        const sessionId = req.query.sessionId || req.body.sessionId;
-        const pdfUrl = `${req.protocol}://${req.get('host')}/download/${sessionId}/latest.pdf`;
+        const sessionId = req.sessionID;
+        const pdfUrl = `https://pdfdownloader-21zh.onrender.com/pdfs/${sessionId}/latest.pdf`;
 
         await client.messages.create({
             body: `Here is your PDF: ${pdfUrl}`,
@@ -78,23 +80,6 @@ app.post('/upload-pdf', upload.single('pdf'), async (req, res) => {
     }
 
     res.status(200).send('PDF uploaded successfully');
-});
-
-// Endpoint for downloading the PDF
-app.get('/download/:sessionId/latest.pdf', (req, res) => {
-    const sessionDir = path.join(__dirname, 'pdfs', req.params.sessionId);
-    const filePath = path.join(sessionDir, 'latest.pdf');
-
-    if (fs.existsSync(filePath)) {
-        res.download(filePath, () => {
-            fs.remove(sessionDir, err => {
-                if (err) console.error('Error deleting session files:', err);
-                else console.log(`Session files deleted for session ID ${req.params.sessionId}`);
-            });
-        });
-    } else {
-        res.status(404).send('File not found.');
-    }
 });
 
 // Start the server
