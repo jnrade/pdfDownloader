@@ -16,7 +16,7 @@ const client = new twilio(accountSid, authToken);
 
 // Session setup
 app.use(session({
-    secret: 'junior', // Replace with a secure key
+    secret: 'your_secret_key', // Replace with a secure key
     resave: false,
     saveUninitialized: true,
     cookie: { maxAge: 60000 } // Session expires after 1 minute
@@ -38,7 +38,7 @@ app.post('/whatsapp', async (req, res) => {
 
     if (incomingMsg === '2') {
         // Access the most recent PDF document
-        const sourceDir = 'C:/Users/Junior De Jonge/Documents'; // Replace with the directory containing your PDFs
+        const sourceDir = 'C:/Users/YourName/Documents'; // Replace with the directory containing your PDFs
         const mostRecentFile = getMostRecentFile(sourceDir);
 
         if (mostRecentFile) {
@@ -53,11 +53,10 @@ app.post('/whatsapp', async (req, res) => {
                 await fs.copy(sourceFilePath, targetFilePath);
                 console.log(`File copied to ${targetFilePath}`);
 
-                // Store the file path in the session
-                req.session.pdfFilePath = targetFilePath;
+                // Construct the public URL to access the PDF
+                const pdfUrl = `${req.protocol}://${req.get('host')}/download/${req.sessionID}/${mostRecentFile}`;
 
                 // Send the user the download link
-                const pdfUrl = `https://pdfdownloader-21zh.onrender.com/download/${req.sessionID}/${mostRecentFile}`;
                 await client.messages.create({
                     body: `Here is your most recent PDF: ${pdfUrl}`,
                     from: 'whatsapp:+14155238886', // Twilio Sandbox number
