@@ -1,85 +1,57 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const session = require('express-session');
+const multer = require('multer');
 const path = require('path');
 const fs = require('fs-extra');
-const session = require('express-session');
 const twilio = require('twilio');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 
-// Twilio credentials (Use environment variables for security in production)
-const accountSid = process.env.accountSid;  // Replace with your Twilio Account SID
-const authToken = process.env.authToken;    // Replace with your Twilio Auth Token
+// Twilio credentials
+const accountSid = process.env.accountSid || 'your_account_sid';
+const authToken = process.env.authToken || 'your_auth_token';
 const client = new twilio(accountSid, authToken);
 
 // Session setup
 app.use(session({
-    secret: 'your_secret_key', // Replace with a secure key
+    secret: 'your_secret_key',
     resave: false,
     saveUninitialized: true,
-    cookie: { maxAge: 60000 } // Session expires after 1 minute
+    cookie: { maxAge: 60000 }
 }));
 
-// Helper function to find the most recent file in a directory
-function getMostRecentFile(dir) {
-    const files = fs.readdirSync(dir)
-        .map(name => ({ name, time: fs.statSync(path.join(dir, name)).mtime.getTime() }))
-        .sort((a, b) => b.time - a.time)
-        .map(file => file.name);
-    return files.length ? files[0] : null;
-}
+// Setup multer for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const sessionDir = path.join(__dirname, 'pdfs', req.sessionID);
+        fs.ensureDirSync(sessionDir);
+        cb(null, sessionDir);
+    },
+    filename: function (req, file, cb) {
+        cb(null, 'latest.pdf');
+    }
+});
+const upload = multer({ storage: storage });
 
 // Endpoint for Twilio to POST WhatsApp messages
 app.post('/whatsapp', async (req, res) => {
     const incomingMsg = req.body.Body.trim();
-    const from = req.body.From; // Sender's WhatsApp number
+    const from = req.body.From;
 
     if (incomingMsg === '2') {
-        // Access the most recent PDF document
-        const sourceDir = 'C:/Users/Junior De Jonge/Desktop/samplePdfPath/samplePdf.pdf'; // Replace with the directory containing your PDFs
-        const mostRecentFile = getMostRecentFile(sourceDir);
+        // Notify the local machine to upload the PDF
+        req.session.pendingRequest = true;
 
-        if (mostRecentFile) {
-            // Copy the most recent file to a session-specific directory
-            const sessionDir = path.join(__dirname, 'pdfs', req.sessionID);
-            await fs.ensureDir(sessionDir);
-
-            const sourceFilePath = path.join(sourceDir, mostRecentFile);
-            const targetFilePath = path.join(sessionDir, mostRecentFile);
-
-            try {
-                await fs.copy(sourceFilePath, targetFilePath);
-                console.log(`File copied to ${targetFilePath}`);
-
-                // Construct the public URL to access the PDF
-                const pdfUrl = `${req.protocol}://${req.get('host')}/download/${req.sessionID}/${mostRecentFile}`;
-
-                // Send the user the download link
-                await client.messages.create({
-                    body: `Here is your most recent PDF: ${pdfUrl}`,
-                    from: 'whatsapp:+14155238886', // Twilio Sandbox number
-                    to: from
-                });
-            } catch (err) {
-                console.error('Error copying file:', err);
-                await client.messages.create({
-                    body: 'An error occurred while processing your request. Please try again later.',
-                    from: 'whatsapp:+14155238886',
-                    to: from
-                });
-            }
-        } else {
-            // No files found in the directory
-            await client.messages.create({
-                body: 'No PDF documents found.',
-                from: 'whatsapp:+14155238886',
-                to: from
-            });
-        }
+        await client.messages.create({
+            body: 'Please wait while we retrieve your PDF.',
+            from: 'whatsapp:+14155238886',
+            to: from
+        });
     } else {
-        // Respond with a default message
         await client.messages.create({
             body: 'Please send "2" to receive the most recent PDF.',
             from: 'whatsapp:+14155238886',
@@ -87,24 +59,38 @@ app.post('/whatsapp', async (req, res) => {
         });
     }
 
-    // Respond with a 200 status to Twilio
     res.status(200).send();
 });
 
+// Endpoint for local machine to upload the latest PDF
+app.post('/upload-pdf', upload.single('pdf'), async (req, res) => {
+    if (req.session.pendingRequest) {
+        const sessionId = req.query.sessionId || req.body.sessionId;
+        const pdfUrl = `${req.protocol}://${req.get('host')}/download/${sessionId}/latest.pdf`;
+
+        await client.messages.create({
+            body: `Here is your PDF: ${pdfUrl}`,
+            from: 'whatsapp:+14155238886',
+            to: req.session.whatsappNumber
+        });
+
+        req.session.pendingRequest = false;
+    }
+
+    res.status(200).send('PDF uploaded successfully');
+});
+
 // Endpoint for downloading the PDF
-app.get('/download/:sessionId/:filename', (req, res) => {
+app.get('/download/:sessionId/latest.pdf', (req, res) => {
     const sessionDir = path.join(__dirname, 'pdfs', req.params.sessionId);
-    const filePath = path.join(sessionDir, req.params.filename);
+    const filePath = path.join(sessionDir, 'latest.pdf');
 
     if (fs.existsSync(filePath)) {
-        res.download(filePath, (err) => {
-            if (!err) {
-                // Delete the file after download
-                fs.remove(sessionDir, (err) => {
-                    if (err) console.error('Error deleting session files:', err);
-                    else console.log(`Session files deleted for session ID ${req.params.sessionId}`);
-                });
-            }
+        res.download(filePath, () => {
+            fs.remove(sessionDir, err => {
+                if (err) console.error('Error deleting session files:', err);
+                else console.log(`Session files deleted for session ID ${req.params.sessionId}`);
+            });
         });
     } else {
         res.status(404).send('File not found.');
@@ -114,5 +100,5 @@ app.get('/download/:sessionId/:filename', (req, res) => {
 // Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Render app server is running on port ${PORT}`);
 });
