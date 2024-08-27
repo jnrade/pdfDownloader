@@ -4,14 +4,14 @@ const path = require('path');
 const fs = require('fs-extra');
 const session = require('express-session');
 const twilio = require('twilio');
-require('dotenv').config()
+require('dotenv').config();
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 
 // Twilio credentials (Use environment variables for security in production)
-const accountSid = process.env.TWILIO_ACCOUNT_SID || 'your_account_sid';  // Replace with your Twilio Account SID
-const authToken = process.env.TWILIO_AUTH_TOKEN || 'your_auth_token';    // Replace with your Twilio Auth Token
+const accountSid = process.env.accountSid;  // Replace with your Twilio Account SID
+const authToken = process.env.authToken;    // Replace with your Twilio Auth Token
 const client = new twilio(accountSid, authToken);
 
 // Session setup
