@@ -38,7 +38,7 @@ app.post('/whatsapp', async (req, res) => {
 
     if (incomingMsg === '2') {
         // Access the most recent PDF document
-        const sourceDir = 'C:/Users/YourName/Documents'; // Replace with the directory containing your PDFs
+        const sourceDir = 'C:/Users/Junior De Jonge/Desktop/samplePdfPath/samplePdf.pdf'; // Replace with the directory containing your PDFs
         const mostRecentFile = getMostRecentFile(sourceDir);
 
         if (mostRecentFile) {
