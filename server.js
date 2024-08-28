@@ -8,7 +8,7 @@ require ('dotenv').config();
 const app = express();
 app.use(bodyParser.json());
 
-app.post('/whatsapp-webhook', async (req, res) => {
+app.post('/whatsapp', async (req, res) => {
     const messageBody = req.body.Body || '';
     const sender = req.body.From;
 
@@ -20,7 +20,7 @@ app.post('/whatsapp-webhook', async (req, res) => {
             });
 
             // Save the PDF to a temporary location
-            const pdfPath = path.join(__dirname, 'samplePDF.pdf');
+            const pdfPath = path.join(__dirname, 'Desktop', 'samplePdfPath','samplePDF.pdf');
             const writer = fs.createWriteStream(pdfPath);
 
             response.data.pipe(writer);
