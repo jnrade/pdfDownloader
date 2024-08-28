@@ -1,89 +1,66 @@
 const express = require('express');
+const axios = require('axios');
 const bodyParser = require('body-parser');
-const session = require('express-session');
-const multer = require('multer');
+const fs = require('fs');
 const path = require('path');
-const fs = require('fs-extra');
-const twilio = require('twilio');
-require('dotenv').config();
+require ('dotenv').config();
 
 const app = express();
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
-// Twilio credentials
-const accountSid = process.env.accountSid || 'your_account_sid';
-const authToken = process.env.authToken || 'your_auth_token';
-const client = new twilio(accountSid, authToken);
+app.post('/whatsapp-webhook', async (req, res) => {
+    const messageBody = req.body.Body || '';
+    const sender = req.body.From;
 
-// Session setup
-app.use(session({
-    secret: 'your_secret_key',
-    resave: false,
-    saveUninitialized: true,
-    cookie: { maxAge: 60000 }
-}));
+    if (messageBody.trim() === '2') {
+        try {
+            // Request the PDF from the local server
+            const response = await axios.get('http://localhost:5001/api/get_pdf', {
+                responseType: 'stream'
+            });
 
-// Serve the pdfs directory publicly
-app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
+            // Save the PDF to a temporary location
+            const pdfPath = path.join(__dirname, 'samplePDF.pdf');
+            const writer = fs.createWriteStream(pdfPath);
 
-// Setup multer for file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const sessionDir = path.join(__dirname, 'pdfs', req.sessionID);
-        fs.ensureDirSync(sessionDir);
-        cb(null, sessionDir);
-    },
-    filename: function (req, file, cb) {
-        cb(null, 'latest.pdf');
-    }
-});
-const upload = multer({ storage: storage });
+            response.data.pipe(writer);
 
-// Endpoint for Twilio to POST WhatsApp messages
-app.post('/whatsapp', async (req, res) => {
-    const incomingMsg = req.body.Body.trim();
-    const from = req.body.From;
+            writer.on('finish', async () => {
+                // Send the PDF via WhatsApp (Twilio example)
+                await sendPdfViaWhatsApp(sender, pdfPath);
+                res.send('PDF sent!');
+            });
 
-    if (incomingMsg === '2') {
-        // Notify the local machine to upload the PDF
-        req.session.pendingRequest = true;
+            writer.on('error', () => {
+                res.status(500).send('Error retrieving PDF');
+            });
 
-        await client.messages.create({
-            body: 'Please wait while we retrieve your PDF.',
-            from: 'whatsapp:+14155238886',
-            to: from
-        });
+        } catch (error) {
+            console.error('Error retrieving PDF:', error);
+            res.status(500).send('Error retrieving PDF');
+        }
     } else {
-        await client.messages.create({
-            body: 'Please send "2" to receive the most recent PDF.',
-            from: 'whatsapp:+14155238886',
-            to: from
-        });
+        res.send('No action taken');
     }
-
-    res.status(200).send();
 });
 
-// Endpoint for local machine to upload the latest PDF
-app.post('/upload-pdf', upload.single('pdf'), async (req, res) => {
-    if (req.session.pendingRequest) {
-        const sessionId = req.sessionID;
-        const pdfUrl = `https://pdfdownloader-21zh.onrender.com/pdfs/${sessionId}/latest.pdf`;
+async function sendPdfViaWhatsApp(recipient, pdfPath) {
+    // Example using Twilio's API to send a WhatsApp message with media
+    const accountSid = process.env.accountSid;
+    const authToken = process.env.authToken;
+    const client = require('twilio')(accountSid, authToken);
 
-        await client.messages.create({
-            body: `Here is your PDF: ${pdfUrl}`,
-            from: 'whatsapp:+14155238886',
-            to: req.session.whatsappNumber
+    await client.messages
+        .create({
+            from: 'whatsapp:+14155238886',  // Twilio WhatsApp sandbox number
+            to: recipient,
+            body: 'Here is your document!',
+            mediaUrl: `https://pdfdownloader-21zh.onrender.com/${path.basename(pdfPath)}`
         });
 
-        req.session.pendingRequest = false;
-    }
+    console.log(`PDF sent to ${recipient}`);
+}
 
-    res.status(200).send('PDF uploaded successfully');
-});
-
-// Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Render app server is running on port ${PORT}`);
+app.listen(5000, () => {
+    console.log('Public server running on port 5000');
 });
